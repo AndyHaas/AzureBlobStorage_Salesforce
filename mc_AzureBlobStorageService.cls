@@ -8,10 +8,11 @@
  */
 public with sharing class mc_AzureBlobStorageService {
     //TODO: Add this Custom Settings to store the Azure Blob Storage Account Name and Key
-    private static final String STORAGE_ACCOUNT_NAME = '<storage_account_name>';
-    private static final String STORAGE_ACCOUNT_KEY = '<key>';
-    private static final String CONTAINER_NAME = '<container_name>';
+    private static final String STORAGE_ACCOUNT_NAME = 'REPLACE_ME';
+    private static final String STORAGE_ACCOUNT_KEY = 'REPLACE_ME';
+    private static final String CONTAINER_NAME = 'REPLACE_ME';
     private static final String BASE_URL = 'https://'+ STORAGE_ACCOUNT_NAME +'.blob.core.windows.net';
+    private static final String SAS_TOKEN = 'REPLACE_ME';
 
     /**
      * Generates the Authorization header for the Azure Blob Storage
@@ -72,14 +73,15 @@ public with sharing class mc_AzureBlobStorageService {
     public static HttpResponse uploadBlob(String blobName, String contentType, Blob fileData) {
         String dateGmt = Datetime.now().formatGMT('EEE, dd MMM yyyy HH:mm:ss') + ' GMT';
         HttpRequest req = new HttpRequest();
-        req.setEndpoint(BASE_URL + '/' + CONTAINER_NAME + '/' + cleanBlobName(blobName));
+        // req.setEndpoint(BASE_URL + '/' + CONTAINER_NAME + '/' + cleanBlobName(blobName)); // Without SAS token
+        req.setEndpoint(BASE_URL + '/' + CONTAINER_NAME + '/' + cleanBlobName(blobName) + '?' + SAS_TOKEN); // With SAS token
         req.setMethod('PUT');
         req.setHeader('x-ms-blob-type', 'BlockBlob');
         req.setHeader('Content-Type', contentType);
         req.setHeader('Content-Length', String.valueOf(fileData.size()));
         req.setHeader('x-ms-date', dateGmt);
         req.setHeader('x-ms-version', '2025-01-05');
-        req.setHeader('Authorization', generateAuthorizationHeader('PUT', cleanBlobName(blobName), contentType, String.valueOf(fileData.size()), dateGmt));
+        // req.setHeader('Authorization', generateAuthorizationHeader('PUT', cleanBlobName(blobName), contentType, String.valueOf(fileData.size()), dateGmt)); // For use without SAS token
         req.setBodyAsBlob(fileData);
 
         System.debug('Request: ' + req);
@@ -129,6 +131,14 @@ public with sharing class mc_AzureBlobStorageService {
      * @return The cleaned blob name
      */
     private static String cleanBlobName(String blobName) {
-        return blobName.toLowerCase().replaceAll(' ', '').replaceAll('[^a-zA-Z0-9]', '');
+        // Get the file extension
+        String extension = blobName.substringAfterLast('.');
+        // Remove the extension and clean the name
+        blobName = blobName.substringBeforeLast('.').replaceAll('[^a-zA-Z0-9]', ' ');
+        // Add the extension back
+        blobName = blobName + '.' + extension;
+        // lowercase the name
+        blobName = blobName.toLowerCase();
+        return blobName;
     }
 }
